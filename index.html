@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>College TaskTracker</title>
+    <style>
+        /* Base Styles */
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 900px; 
+            margin: auto; 
+            padding: 20px; 
+            background-color: #f0f8ff;
+            color: #2c3e50;
+        }
+
+        h1 { 
+            text-align: center; 
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        /* Notification Banner */
+        #notification-banner { 
+            display: none; 
+            background-color: #ffeb3b; 
+            padding: 10px; 
+            text-align: center; 
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        /* Input Section */
+        .input-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .input-section input, .input-section select, .input-section button { 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        button { 
+            cursor: pointer; 
+            background-color: #2980b9; 
+            color: white; 
+            transition: background-color 0.3s ease;
+            border: none;
+        }
+
+        button:hover { 
+            background-color: #1c5980; 
+        }
+
+        /* Task List Styles */
+        ul { 
+            list-style-type: none; 
+            padding: 0; 
+        }
+
+        li { 
+            background-color: white; 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .completed { 
+            text-decoration: line-through; 
+            color: #95a5a6;
+        }
+
+        .low { 
+            color: green; 
+        }
+
+        .medium { 
+            color: orange; 
+        }
+
+        .high { 
+            color: red; 
+        }
+
+        .tag { 
+            background-color: #bdc3c7; 
+            border-radius: 3px; 
+            padding: 2px 5px; 
+            margin-left: 5px; 
+            font-size: 0.8em; 
+        }
+
+        .overdue { 
+            color: #e74c3c; 
+            font-weight: bold;
+        }
+
+        .reminder { 
+            font-size: 0.8em; 
+            color: #2980b9; 
+            margin-top: 5px;
+        }
+
+        /* Filter and Search Section */
+        .filter-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .input-section, .filter-section {
+                flex-direction: column;
+                align-items: center;
+            }
+            .input-section input, .input-section select, .input-section button,
+            .filter-section input, .filter-section select, .filter-section button {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        /* Focus Styles for Accessibility */
+        input:focus, select:focus, button:focus {
+            outline: 2px solid #3498db;
+        }
+
+        /* Additional Styles */
+        .category-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        /* Edit Button Styles */
+        .edit-button {
+            background-color: #f39c12;
+        }
+
+        .edit-button:hover {
+            background-color: #d35400;
+        }
+    </style>
+</head>
+<body>
+    <h1>College TaskTracker</h1>
+
+    <!-- Notification Banner -->
+    <div id="notification-banner">
+        Reminders are active only when the app is open in your browser.
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-section" role="form" aria-labelledby="task-input">
+        <input type="text" id="task-input" placeholder="Enter task name" aria-label="Task Name">
+        <select id="category-select" aria-label="Task Category">
+            <option value="Homework">Homework</option>
+            <option value="Exam">Exam</option>
+            <option value="Lecture">Lecture</option>
+        </select>
+        <select id="priority-select" aria-label="Task Priority">
+            <option value="Low">Low Priority</option>
+            <option value="Medium" selected>Medium Priority</option>
+            <option value="High">High Priority</option>
+        </select>
+        <input type="date" id="due-date-input" aria-label="Task Due Date">
+        <input type="text" id="tag-input" placeholder="Add tag (e.g., Math)" aria-label="Task Tags">
+        <button id="add-task" aria-label="Add Task">Add Task</button>
+    </div>
+
+    <!-- Filter and Search Section -->
+    <div class="filter-section" role="search" aria-labelledby="search-input">
+        <input type="text" id="search-input" placeholder="Search tasks" aria-label="Search Tasks">
+        <select id="filter-select" aria-label="Filter Tasks">
+            <option value="all">All Tasks</option>
+            <option value="Homework">Homework</option>
+            <option value="Exam">Exam</option>
+            <option value="Lecture">Lecture</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="high">High Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="low">Low Priority</option>
+        </select>
+        <button onclick="applyFilters()" aria-label="Apply Filters">Apply Filters</button>
+    </div>
+
+    <!-- Task List -->
+    <ul id="task-list"></ul>
+
+    <script>
+        // Selecting DOM Elements
+        const taskInput = document.getElementById('task-input');
+        const addTaskBtn = document.getElementById('add-task');
+        const taskList = document.getElementById('task-list');
+        const searchInput = document.getElementById('search-input');
+        const filterSelect = document.getElementById('filter-select');
+
+        // Maximum setTimeout delay
+        const MAX_TIMEOUT = 2147483647; // ~24.8 days
+
+        // Function to generate UUID
+        function generateUUID() {
+            // Simple UUID generator
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Load tasks from Local Storage
+        let tasks = [];
+        try {
+            tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks.forEach(task => {
+                if (task.remindersSet === undefined) {
+                    task.remindersSet = false;
+                }
+            });
+        } catch (error) {
+            console.error('Error loading tasks from Local Storage:', error);
+            tasks = [];
+        }
+
+        // Request Notification Permission
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission !== 'granted') {
+                        alert('Notifications are disabled. Reminders will not be sent.');
+                    }
+                });
+            }
+        }
+
+        // Show Notification Banner
+        function showNotificationBanner() {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const banner = document.getElementById('notification-banner');
+                banner.style.display = 'block';
+            }
+        }
+
+        // Initialize on window load
+        window.onload = () => {
+            renderTasks(tasks);
+            requestNotificationPermission();
+            setAllReminders();
+            showNotificationBanner();
+        };
+
+        // Render Tasks
+        function renderTasks(tasksToRender) {
+            taskList.innerHTML = '';
+            const today = new Date().toISOString().split('T')[0];
+            tasksToRender.forEach((task) => {
+                const li = document.createElement('li');
+                let tagsHTML = '';
+                task.tags.forEach(tag => {
+                    tagsHTML += `<span class="tag">${tag}</span>`;
+                });
+
+                let dueDateHTML = '';
+                if (task.dueDate) {
+                    dueDateHTML = `<span>Due: ${task.dueDate}</span>`;
+                }
+
+                let overdueClass = '';
+                if (task.dueDate && task.dueDate < today && !task.completed && task.category !== 'Lecture') {
+                    overdueClass = 'overdue';
+                }
+
+                li.innerHTML = `
+                    <div>
+                        <span class="${task.completed ? 'completed' : ''} ${task.priority.toLowerCase()}">
+                            ${task.name} [${task.category}] ${tagsHTML} ${dueDateHTML}
+                        </span>
+                        ${task.dueDate && !task.completed && task.category !== 'Lecture' ? '<div class="reminder">Due Soon!</div>' : ''}
+                    </div>
+                    <div>
+                        <button onclick="toggleComplete('${task.id}')" aria-label="Toggle Complete">${task.completed ? 'Undo' : 'Complete'}</button>
+                        <button onclick="editTask('${task.id}')" aria-label="Edit Task" class="edit-button">Edit</button>
+                        <button onclick="deleteTask('${task.id}')" aria-label="Delete Task">Delete</button>
+                    </div>
+                `;
+                taskList.appendChild(li);
+            });
+        }
+
+        // Add Task
+        function addTask() {
+            const taskName = taskInput.value.trim();
+            const category = document.getElementById('category-select').value;
+            const priority = document.getElementById('priority-select').value;
+            const dueDate = document.getElementById('due-date-input').value;
+            const tagInput = document.getElementById('tag-input').value.trim();
+            const tags = tagInput ? tagInput.split(',').map(tag => tag.trim()) : [];
+
+            if (taskName === '') {
+                alert('Please enter a task name.');
+                return;
+            }
+
+            if (dueDate && isNaN(new Date(dueDate))) {
+                alert('Please enter a valid due date.');
+                return;
+            }
+
+            const newTask = { 
+                id: generateUUID(),
+                name: taskName, 
+                category: category, 
+                completed: false, 
+                priority: priority, 
+                dueDate: dueDate, 
+                tags: tags,
+                remindersSet: false
+            };
+
+            tasks.push(newTask);
+            taskInput.value = '';
+            document.getElementById('tag-input').value = '';
+            document.getElementById('due-date-input').value = '';
+
+            saveAndRender();
+            alert('Task added successfully!');
+        }
+
+        // Toggle Complete
+        function toggleComplete(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveAndRender();
+            }
+        }
+
+        // Edit Task
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                // Prompt user for new values
+                const newName = prompt('Edit Task Name:', task.name);
+                if (newName === null) return; // User cancelled
+                const newCategory = prompt('Edit Task Category (Homework, Exam, Lecture):', task.category);
+                if (newCategory === null) return;
+                const newPriority = prompt('Edit Task Priority (Low, Medium, High):', task.priority);
+                if (newPriority === null) return;
+                const newDueDate = prompt('Edit Due Date (YYYY-MM-DD):', task.dueDate);
+                if (newDueDate === null) return;
+                const newTags = prompt('Edit Tags (comma-separated):', task.tags.join(', '));
+                if (newTags === null) return;
+
+                // Validate inputs
+                if (newName.trim() === '') {
+                    alert('Task name cannot be empty.');
+                    return;
+                }
+                if (newDueDate && isNaN(new Date(newDueDate))) {
+                    alert('Please enter a valid due date.');
+                    return;
+                }
+
+                // Update task details
+                task.name = newName.trim();
+                task.category = newCategory.trim();
+                task.priority = newPriority.trim();
+                task.dueDate = newDueDate.trim();
+                task.tags = newTags ? newTags.split(',').map(tag => tag.trim()) : [];
+
+                // Reset remindersSet to allow re-setting reminders
+                task.remindersSet = false;
+
+                saveAndRender();
+                alert('Task updated successfully!');
+            }
+        }
+
+        // Delete Task
+        function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveAndRender();
+            }
+        }
+
+        // Save and Render with Error Handling
+        function saveAndRender() {
+            try {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                renderTasks(tasks);
+                setAllReminders();
+            } catch (error) {
+                alert('Error saving tasks. Please try again.');
+                console.error('Save Error:', error);
+            }
+        }
+
+        // Set All Reminders
+        function setAllReminders() {
+            tasks.forEach((task) => {
+                if (!task.completed && task.dueDate && task.category !== 'Lecture' && !task.remindersSet) {
+                    setReminder(task.id);
+                    task.remindersSet = true;
+                }
+            });
+            saveTasks(); // Save the updated 'remindersSet' state
+        }
+
+        // Separate function to save tasks without rendering
+        function saveTasks() {
+            try {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            } catch (error) {
+                alert('Error saving tasks. Please try again.');
+                console.error('Save Error:', error);
+            }
+        }
+
+        // Set Reminder for a Task
+        function setReminder(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task && task.dueDate) {
+                const due = new Date(task.dueDate);
+                const now = new Date();
+                const timeDiff = due.getTime() - now.getTime();
+
+                // Set reminder 1 day before due date
+                const reminderTime = timeDiff - (24 * 60 * 60 * 1000);
+                if (reminderTime > 0 && reminderTime < MAX_TIMEOUT) {
+                    setTimeout(() => {
+                        if (!task.completed) {
+                            if (Notification.permission === 'granted') {
+                                new Notification('Task Reminder', {
+                                    body: `Reminder: "${task.name}" is due tomorrow!`,
+                                });
+                            } else if (Notification.permission !== 'denied') {
+                                // Request permission if not already denied
+                                Notification.requestPermission().then(permission => {
+                                    if (permission === 'granted') {
+                                        new Notification('Task Reminder', {
+                                            body: `Reminder: "${task.name}" is due tomorrow!`,
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    }, reminderTime);
+                } else if (reminderTime >= MAX_TIMEOUT) {
+                    // Schedule a shorter delay to set the actual reminder later
+                    setTimeout(() => {
+                        setReminder(id);
+                    }, MAX_TIMEOUT);
+                }
+
+                // Set reminder on due date
+                if (timeDiff > 0 && timeDiff < MAX_TIMEOUT) {
+                    setTimeout(() => {
+                        if (!task.completed) {
+                            if (Notification.permission === 'granted') {
+                                new Notification('Task Reminder', {
+                                    body: `Reminder: "${task.name}" is due today!`,
+                                });
+                            } else if (Notification.permission !== 'denied') {
+                                // Request permission if not already denied
+                                Notification.requestPermission().then(permission => {
+                                    if (permission === 'granted') {
+                                        new Notification('Task Reminder', {
+                                            body: `Reminder: "${task.name}" is due today!`,
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    }, timeDiff);
+                } else if (timeDiff >= MAX_TIMEOUT) {
+                    // Schedule a shorter delay to set the actual reminder later
+                    setTimeout(() => {
+                        setReminder(id);
+                    }, MAX_TIMEOUT);
+                }
+            }
+        }
+
+        // Apply Filters
+        function applyFilters() {
+            const searchQuery = searchInput.value.toLowerCase();
+            const filter = filterSelect.value;
+            let filteredTasks = tasks.filter(task => {
+                const matchesSearch = task.name.toLowerCase().includes(searchQuery) || task.tags.some(tag => tag.toLowerCase().includes(searchQuery));
+                return matchesSearch;
+            });
+
+            if (filter !== 'all') {
+                switch(filter) {
+                    case 'completed':
+                        filteredTasks = filteredTasks.filter(task => task.completed);
+                        break;
+                    case 'pending':
+                        filteredTasks = filteredTasks.filter(task => !task.completed);
+                        break;
+                    case 'high':
+                        filteredTasks = filteredTasks.filter(task => task.priority === 'High');
+                        break;
+                    case 'medium':
+                        filteredTasks = filteredTasks.filter(task => task.priority === 'Medium');
+                        break;
+                    case 'low':
+                        filteredTasks = filteredTasks.filter(task => task.priority === 'Low');
+                        break;
+                    case 'Homework':
+                    case 'Exam':
+                    case 'Lecture':
+                        filteredTasks = filteredTasks.filter(task => task.category === filter);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            renderTasks(filteredTasks);
+        }
+
+        // Event Listeners
+        addTaskBtn.addEventListener('click', addTask);
+        taskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+        searchInput.addEventListener('input', applyFilters);
+        filterSelect.addEventListener('change', applyFilters);
+    </script>
+</body>
+</html>
