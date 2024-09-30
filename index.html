@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>College TaskTracker</title>
+    <title>College TaskTracker Pro</title>
     <style>
         /* Base Styles */
         body { 
-            font-family: Arial, sans-serif; 
-            max-width: 900px; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1000px; 
             margin: auto; 
             padding: 20px; 
-            background-color: #f0f8ff;
+            background-color: #ecf0f1;
             color: #2c3e50;
         }
 
         h1 { 
             text-align: center; 
-            color: #2c3e50;
+            color: #34495e;
             margin-bottom: 20px;
         }
 
@@ -120,6 +120,44 @@
             justify-content: center;
         }
 
+        /* Calendar Styles */
+        #calendar {
+            max-width: 100%;
+            margin: 20px auto;
+        }
+
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .calendar-table th, .calendar-table td {
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .calendar-table th {
+            background-color: #ecf0f1;
+        }
+
+        .has-task {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Drag-and-Drop Styles */
+        .dragging {
+            opacity: 0.5;
+        }
+
+        /* Chart Styles */
+        #chart-container {
+            max-width: 800px;
+            margin: 40px auto;
+        }
+
         /* Responsive Design */
         @media (max-width: 600px) {
             li {
@@ -156,10 +194,71 @@
         .edit-button:hover {
             background-color: #d35400;
         }
+
+        /* Subtask Styles */
+        .subtask-list {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .subtask-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+            max-width: 500px;
+            border-radius: 10px;
+        }
+
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover,
+        .close-modal:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Recurring Task Styles */
+        .recurring-badge {
+            background-color: #8e44ad;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
-    <h1>College TaskTracker</h1>
+    <h1>College TaskTracker Pro</h1>
 
     <!-- Notification Banner -->
     <div id="notification-banner">
@@ -173,6 +272,8 @@
             <option value="Homework">Homework</option>
             <option value="Exam">Exam</option>
             <option value="Lecture">Lecture</option>
+            <option value="Project">Project</option>
+            <option value="Meeting">Meeting</option>
         </select>
         <select id="priority-select" aria-label="Task Priority">
             <option value="Low">Low Priority</option>
@@ -180,6 +281,12 @@
             <option value="High">High Priority</option>
         </select>
         <input type="date" id="due-date-input" aria-label="Task Due Date">
+        <select id="recurring-select" aria-label="Recurring Task">
+            <option value="none">Does Not Repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+        </select>
         <input type="text" id="tag-input" placeholder="Add tag (e.g., Math)" aria-label="Task Tags">
         <button id="add-task" aria-label="Add Task">Add Task</button>
     </div>
@@ -192,6 +299,8 @@
             <option value="Homework">Homework</option>
             <option value="Exam">Exam</option>
             <option value="Lecture">Lecture</option>
+            <option value="Project">Project</option>
+            <option value="Meeting">Meeting</option>
             <option value="completed">Completed</option>
             <option value="pending">Pending</option>
             <option value="high">High Priority</option>
@@ -204,6 +313,25 @@
     <!-- Task List -->
     <ul id="task-list"></ul>
 
+    <!-- Calendar View -->
+    <div id="calendar"></div>
+
+    <!-- Chart Container -->
+    <div id="chart-container">
+        <canvas id="task-chart" width="800" height="400"></canvas>
+    </div>
+
+    <!-- Subtask Modal -->
+    <div id="subtask-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeSubtaskModal()">&times;</span>
+            <h2 id="subtask-modal-title">Add Subtask</h2>
+            <input type="text" id="subtask-input" placeholder="Enter subtask name">
+            <button onclick="addSubtask()">Add Subtask</button>
+            <ul id="subtask-list" class="subtask-list"></ul>
+        </div>
+    </div>
+
     <script>
         // Selecting DOM Elements
         const taskInput = document.getElementById('task-input');
@@ -211,6 +339,13 @@
         const taskList = document.getElementById('task-list');
         const searchInput = document.getElementById('search-input');
         const filterSelect = document.getElementById('filter-select');
+        const calendarDiv = document.getElementById('calendar');
+        const recurringSelect = document.getElementById('recurring-select');
+        const chartCanvas = document.getElementById('task-chart');
+        const subtaskModal = document.getElementById('subtask-modal');
+        const subtaskInput = document.getElementById('subtask-input');
+        const subtaskList = document.getElementById('subtask-list');
+        let currentTaskId = null;
 
         // Maximum setTimeout delay
         const MAX_TIMEOUT = 2147483647; // ~24.8 days
@@ -224,18 +359,86 @@
             });
         }
 
-        // Load tasks from Local Storage
+        // Load tasks from IndexedDB
         let tasks = [];
-        try {
-            tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks.forEach(task => {
-                if (task.remindersSet === undefined) {
-                    task.remindersSet = false;
-                }
+
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('taskTrackerDB', 1);
+
+                request.onerror = function(event) {
+                    console.error('Database error:', event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+
+                request.onupgradeneeded = function(event) {
+                    const db = event.target.result;
+                    const objectStore = db.createObjectStore('tasks', { keyPath: 'id' });
+                };
+
+                request.onsuccess = function(event) {
+                    const db = event.target.result;
+                    resolve(db);
+                };
             });
-        } catch (error) {
-            console.error('Error loading tasks from Local Storage:', error);
-            tasks = [];
+        }
+
+        function loadTasks() {
+            return openDatabase().then(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(['tasks'], 'readonly');
+                    const objectStore = transaction.objectStore('tasks');
+                    const request = objectStore.getAll();
+
+                    request.onerror = function(event) {
+                        console.error('Error loading tasks:', event.target.errorCode);
+                        reject(event.target.errorCode);
+                    };
+
+                    request.onsuccess = function(event) {
+                        tasks = event.target.result || [];
+                        resolve(tasks);
+                    };
+                });
+            });
+        }
+
+        function saveTask(task) {
+            return openDatabase().then(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(['tasks'], 'readwrite');
+                    const objectStore = transaction.objectStore('tasks');
+                    const request = objectStore.put(task);
+
+                    request.onerror = function(event) {
+                        console.error('Error saving task:', event.target.errorCode);
+                        reject(event.target.errorCode);
+                    };
+
+                    request.onsuccess = function(event) {
+                        resolve();
+                    };
+                });
+            });
+        }
+
+        function deleteTaskFromDB(id) {
+            return openDatabase().then(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(['tasks'], 'readwrite');
+                    const objectStore = transaction.objectStore('tasks');
+                    const request = objectStore.delete(id);
+
+                    request.onerror = function(event) {
+                        console.error('Error deleting task:', event.target.errorCode);
+                        reject(event.target.errorCode);
+                    };
+
+                    request.onsuccess = function(event) {
+                        resolve();
+                    };
+                });
+            });
         }
 
         // Request Notification Permission
@@ -259,10 +462,14 @@
 
         // Initialize on window load
         window.onload = () => {
-            renderTasks(tasks);
-            requestNotificationPermission();
-            setAllReminders();
-            showNotificationBanner();
+            loadTasks().then(() => {
+                renderTasks(tasks);
+                renderCalendar();
+                requestNotificationPermission();
+                setAllReminders();
+                showNotificationBanner();
+                renderChart();
+            });
         };
 
         // Render Tasks
@@ -271,6 +478,11 @@
             const today = new Date().toISOString().split('T')[0];
             tasksToRender.forEach((task) => {
                 const li = document.createElement('li');
+                li.draggable = true;
+                li.addEventListener('dragstart', handleDragStart);
+                li.addEventListener('dragover', handleDragOver);
+                li.addEventListener('drop', handleDrop);
+
                 let tagsHTML = '';
                 task.tags.forEach(tag => {
                     tagsHTML += `<span class="tag">${tag}</span>`;
@@ -286,21 +498,44 @@
                     overdueClass = 'overdue';
                 }
 
+                let recurringHTML = '';
+                if (task.recurring !== 'none') {
+                    recurringHTML = `<span class="recurring-badge">${task.recurring.charAt(0).toUpperCase() + task.recurring.slice(1)}</span>`;
+                }
+
                 li.innerHTML = `
                     <div>
-                        <span class="${task.completed ? 'completed' : ''} ${task.priority.toLowerCase()}">
-                            ${task.name} [${task.category}] ${tagsHTML} ${dueDateHTML}
+                        <span class="${task.completed ? 'completed' : ''} ${task.priority.toLowerCase()} ${overdueClass}">
+                            ${task.name} [${task.category}] ${tagsHTML} ${dueDateHTML} ${recurringHTML}
                         </span>
                         ${task.dueDate && !task.completed && task.category !== 'Lecture' ? '<div class="reminder">Due Soon!</div>' : ''}
+                        ${task.subtasks && task.subtasks.length > 0 ? renderSubtasks(task.subtasks) : ''}
                     </div>
                     <div>
                         <button onclick="toggleComplete('${task.id}')" aria-label="Toggle Complete">${task.completed ? 'Undo' : 'Complete'}</button>
+                        <button onclick="openSubtaskModal('${task.id}')" aria-label="Add Subtask" class="edit-button">Subtasks</button>
                         <button onclick="editTask('${task.id}')" aria-label="Edit Task" class="edit-button">Edit</button>
                         <button onclick="deleteTask('${task.id}')" aria-label="Delete Task">Delete</button>
                     </div>
                 `;
                 taskList.appendChild(li);
             });
+        }
+
+        function renderSubtasks(subtasks) {
+            let subtaskHTML = '<ul class="subtask-list">';
+            subtasks.forEach(subtask => {
+                subtaskHTML += `
+                    <li class="subtask-item">
+                        <span class="${subtask.completed ? 'completed' : ''}">
+                            ${subtask.name}
+                        </span>
+                        <button onclick="toggleSubtaskComplete('${subtask.id}', '${subtask.parentId}')">${subtask.completed ? 'Undo' : 'Complete'}</button>
+                    </li>
+                `;
+            });
+            subtaskHTML += '</ul>';
+            return subtaskHTML;
         }
 
         // Add Task
@@ -311,6 +546,7 @@
             const dueDate = document.getElementById('due-date-input').value;
             const tagInput = document.getElementById('tag-input').value.trim();
             const tags = tagInput ? tagInput.split(',').map(tag => tag.trim()) : [];
+            const recurring = recurringSelect.value;
 
             if (taskName === '') {
                 alert('Please enter a task name.');
@@ -330,13 +566,16 @@
                 priority: priority, 
                 dueDate: dueDate, 
                 tags: tags,
-                remindersSet: false
+                remindersSet: false,
+                recurring: recurring,
+                subtasks: []
             };
 
             tasks.push(newTask);
             taskInput.value = '';
             document.getElementById('tag-input').value = '';
             document.getElementById('due-date-input').value = '';
+            recurringSelect.value = 'none';
 
             saveAndRender();
             alert('Task added successfully!');
@@ -347,7 +586,43 @@
             const task = tasks.find(t => t.id === id);
             if (task) {
                 task.completed = !task.completed;
+                if (task.completed && task.recurring !== 'none') {
+                    generateNextRecurringTask(task);
+                }
                 saveAndRender();
+            }
+        }
+
+        // Generate Next Recurring Task
+        function generateNextRecurringTask(task) {
+            const dueDate = new Date(task.dueDate);
+            switch (task.recurring) {
+                case 'daily':
+                    dueDate.setDate(dueDate.getDate() + 1);
+                    break;
+                case 'weekly':
+                    dueDate.setDate(dueDate.getDate() + 7);
+                    break;
+                case 'monthly':
+                    dueDate.setMonth(dueDate.getMonth() + 1);
+                    break;
+            }
+            const newTask = { ...task };
+            newTask.id = generateUUID();
+            newTask.completed = false;
+            newTask.dueDate = dueDate.toISOString().split('T')[0];
+            tasks.push(newTask);
+        }
+
+        // Toggle Subtask Complete
+        function toggleSubtaskComplete(subtaskId, parentId) {
+            const parentTask = tasks.find(t => t.id === parentId);
+            if (parentTask) {
+                const subtask = parentTask.subtasks.find(st => st.id === subtaskId);
+                if (subtask) {
+                    subtask.completed = !subtask.completed;
+                    saveAndRender();
+                }
             }
         }
 
@@ -358,12 +633,14 @@
                 // Prompt user for new values
                 const newName = prompt('Edit Task Name:', task.name);
                 if (newName === null) return; // User cancelled
-                const newCategory = prompt('Edit Task Category (Homework, Exam, Lecture):', task.category);
+                const newCategory = prompt('Edit Task Category (Homework, Exam, Lecture, Project, Meeting):', task.category);
                 if (newCategory === null) return;
                 const newPriority = prompt('Edit Task Priority (Low, Medium, High):', task.priority);
                 if (newPriority === null) return;
                 const newDueDate = prompt('Edit Due Date (YYYY-MM-DD):', task.dueDate);
                 if (newDueDate === null) return;
+                const newRecurring = prompt('Edit Recurring (none, daily, weekly, monthly):', task.recurring);
+                if (newRecurring === null) return;
                 const newTags = prompt('Edit Tags (comma-separated):', task.tags.join(', '));
                 if (newTags === null) return;
 
@@ -382,6 +659,7 @@
                 task.category = newCategory.trim();
                 task.priority = newPriority.trim();
                 task.dueDate = newDueDate.trim();
+                task.recurring = newRecurring.trim();
                 task.tags = newTags ? newTags.split(',').map(tag => tag.trim()) : [];
 
                 // Reset remindersSet to allow re-setting reminders
@@ -396,20 +674,23 @@
         function deleteTask(id) {
             if (confirm('Are you sure you want to delete this task?')) {
                 tasks = tasks.filter(t => t.id !== id);
-                saveAndRender();
+                deleteTaskFromDB(id).then(() => {
+                    saveAndRender();
+                });
             }
         }
 
         // Save and Render with Error Handling
         function saveAndRender() {
-            try {
-                localStorage.setItem('tasks', JSON.stringify(tasks));
+            Promise.all(tasks.map(task => saveTask(task))).then(() => {
                 renderTasks(tasks);
+                renderCalendar();
                 setAllReminders();
-            } catch (error) {
+                renderChart();
+            }).catch(error => {
                 alert('Error saving tasks. Please try again.');
                 console.error('Save Error:', error);
-            }
+            });
         }
 
         // Set All Reminders
@@ -420,17 +701,8 @@
                     task.remindersSet = true;
                 }
             });
-            saveTasks(); // Save the updated 'remindersSet' state
-        }
-
-        // Separate function to save tasks without rendering
-        function saveTasks() {
-            try {
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-            } catch (error) {
-                alert('Error saving tasks. Please try again.');
-                console.error('Save Error:', error);
-            }
+            // Save the updated 'remindersSet' state
+            tasks.forEach(task => saveTask(task));
         }
 
         // Set Reminder for a Task
@@ -450,23 +722,9 @@
                                 new Notification('Task Reminder', {
                                     body: `Reminder: "${task.name}" is due tomorrow!`,
                                 });
-                            } else if (Notification.permission !== 'denied') {
-                                // Request permission if not already denied
-                                Notification.requestPermission().then(permission => {
-                                    if (permission === 'granted') {
-                                        new Notification('Task Reminder', {
-                                            body: `Reminder: "${task.name}" is due tomorrow!`,
-                                        });
-                                    }
-                                });
                             }
                         }
                     }, reminderTime);
-                } else if (reminderTime >= MAX_TIMEOUT) {
-                    // Schedule a shorter delay to set the actual reminder later
-                    setTimeout(() => {
-                        setReminder(id);
-                    }, MAX_TIMEOUT);
                 }
 
                 // Set reminder on due date
@@ -477,23 +735,9 @@
                                 new Notification('Task Reminder', {
                                     body: `Reminder: "${task.name}" is due today!`,
                                 });
-                            } else if (Notification.permission !== 'denied') {
-                                // Request permission if not already denied
-                                Notification.requestPermission().then(permission => {
-                                    if (permission === 'granted') {
-                                        new Notification('Task Reminder', {
-                                            body: `Reminder: "${task.name}" is due today!`,
-                                        });
-                                    }
-                                });
                             }
                         }
                     }, timeDiff);
-                } else if (timeDiff >= MAX_TIMEOUT) {
-                    // Schedule a shorter delay to set the actual reminder later
-                    setTimeout(() => {
-                        setReminder(id);
-                    }, MAX_TIMEOUT);
                 }
             }
         }
@@ -527,6 +771,8 @@
                     case 'Homework':
                     case 'Exam':
                     case 'Lecture':
+                    case 'Project':
+                    case 'Meeting':
                         filteredTasks = filteredTasks.filter(task => task.category === filter);
                         break;
                     default:
@@ -537,6 +783,165 @@
             renderTasks(filteredTasks);
         }
 
+        // Drag-and-Drop Handlers
+        let draggedTaskId = null;
+
+        function handleDragStart(e) {
+            draggedTaskId = this.querySelector('button').getAttribute('onclick').match(/'([^']+)'/)[1];
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            const targetTaskId = this.querySelector('button').getAttribute('onclick').match(/'([^']+)'/)[1];
+            if (draggedTaskId !== targetTaskId) {
+                const draggedTaskIndex = tasks.findIndex(t => t.id === draggedTaskId);
+                const targetTaskIndex = tasks.findIndex(t => t.id === targetTaskId);
+                const [draggedTask] = tasks.splice(draggedTaskIndex, 1);
+                tasks.splice(targetTaskIndex, 0, draggedTask);
+                saveAndRender();
+            }
+            return false;
+        }
+
+        // Render Calendar
+        function renderCalendar() {
+            calendarDiv.innerHTML = '';
+            const today = new Date();
+            const month = today.getMonth();
+            const year = today.getFullYear();
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            let calendarHTML = '<table class="calendar-table">';
+            calendarHTML += '<tr>';
+            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            daysOfWeek.forEach(day => {
+                calendarHTML += `<th>${day}</th>`;
+            });
+            calendarHTML += '</tr><tr>';
+
+            for (let i = 0; i < firstDay.getDay(); i++) {
+                calendarHTML += '<td></td>';
+            }
+
+            for (let date = 1; date <= lastDay.getDate(); date++) {
+                const currentDate = new Date(year, month, date);
+                const dateString = currentDate.toISOString().split('T')[0];
+                const tasksOnDate = tasks.filter(task => task.dueDate === dateString);
+
+                let cellClass = '';
+                if (tasksOnDate.length > 0) {
+                    cellClass = 'has-task';
+                }
+
+                calendarHTML += `<td class="${cellClass}" onclick="showTasksOnDate('${dateString}')">${date}</td>`;
+
+                if (currentDate.getDay() === 6 && date !== lastDay.getDate()) {
+                    calendarHTML += '</tr><tr>';
+                }
+            }
+
+            calendarHTML += '</tr></table>';
+            calendarDiv.innerHTML = calendarHTML;
+        }
+
+        function showTasksOnDate(date) {
+            const tasksOnDate = tasks.filter(task => task.dueDate === date);
+            if (tasksOnDate.length > 0) {
+                let message = `Tasks on ${date}:\n`;
+                tasksOnDate.forEach(task => {
+                    message += `- ${task.name}\n`;
+                });
+                alert(message);
+            } else {
+                alert('No tasks on this date.');
+            }
+        }
+
+        // Render Chart
+        function renderChart() {
+            const ctx = chartCanvas.getContext('2d');
+            const completedTasks = tasks.filter(task => task.completed).length;
+            const pendingTasks = tasks.filter(task => !task.completed).length;
+
+            const data = {
+                labels: ['Completed', 'Pending'],
+                datasets: [{
+                    data: [completedTasks, pendingTasks],
+                    backgroundColor: ['#2ecc71', '#e74c3c']
+                }]
+            };
+
+            if (window.myPieChart) {
+                window.myPieChart.destroy();
+            }
+
+            window.myPieChart = new Chart(ctx, {
+                type: 'pie',
+                data: data,
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        // Subtask Modal Functions
+        function openSubtaskModal(taskId) {
+            currentTaskId = taskId;
+            subtaskModal.style.display = 'block';
+            renderSubtaskModal();
+        }
+
+        function closeSubtaskModal() {
+            subtaskModal.style.display = 'none';
+            subtaskInput.value = '';
+            subtaskList.innerHTML = '';
+        }
+
+        function addSubtask() {
+            const subtaskName = subtaskInput.value.trim();
+            if (subtaskName === '') {
+                alert('Please enter a subtask name.');
+                return;
+            }
+
+            const parentTask = tasks.find(t => t.id === currentTaskId);
+            if (parentTask) {
+                const newSubtask = {
+                    id: generateUUID(),
+                    name: subtaskName,
+                    completed: false,
+                    parentId: currentTaskId
+                };
+                parentTask.subtasks.push(newSubtask);
+                subtaskInput.value = '';
+                saveAndRender();
+                renderSubtaskModal();
+            }
+        }
+
+        function renderSubtaskModal() {
+            const parentTask = tasks.find(t => t.id === currentTaskId);
+            if (parentTask) {
+                subtaskList.innerHTML = '';
+                parentTask.subtasks.forEach(subtask => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="${subtask.completed ? 'completed' : ''}">${subtask.name}</span>
+                        <button onclick="toggleSubtaskComplete('${subtask.id}', '${currentTaskId}')">${subtask.completed ? 'Undo' : 'Complete'}</button>
+                    `;
+                    subtaskList.appendChild(li);
+                });
+            }
+        }
+
         // Event Listeners
         addTaskBtn.addEventListener('click', addTask);
         taskInput.addEventListener('keypress', (e) => {
@@ -544,6 +949,69 @@
         });
         searchInput.addEventListener('input', applyFilters);
         filterSelect.addEventListener('change', applyFilters);
+        window.onclick = function(event) {
+            if (event.target === subtaskModal) {
+                closeSubtaskModal();
+            }
+        };
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+
+    <!-- Include Chart.js for Data Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Service Worker Script -->
+    <script>
+        // Create a Blob for the service worker script
+        const swCode = `
+            const CACHE_NAME = 'task-tracker-cache-v1';
+            const urlsToCache = [
+                '/',
+                '/index.html',
+            ];
+
+            self.addEventListener('install', event => {
+                event.waitUntil(
+                    caches.open(CACHE_NAME)
+                        .then(cache => {
+                            return cache.addAll(urlsToCache);
+                        })
+                );
+            });
+
+            self.addEventListener('fetch', event => {
+                event.respondWith(
+                    caches.match(event.request)
+                        .then(response => {
+                            return response || fetch(event.request);
+                        })
+                );
+            });
+        `;
+
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+
+        // Register the service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swUrl)
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
     </script>
 </body>
 </html>
